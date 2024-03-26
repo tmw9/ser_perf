@@ -9,8 +9,9 @@ int main() {
 
     torch::Tensor tensor = torch::rand({dim, dim});
 
-    auto at =  serialize(tensor);
+    auto at =  serialization::serialize(tensor);
+
     torch::Tensor t;
-    deseralize(t, std::move(at));
+    serialization::deseralize(t, std::move(at));
     std::cout << t << std::endl;
 }

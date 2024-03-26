@@ -3,8 +3,9 @@
 
 #include <torch/torch.h>
 
-std::unique_ptr<char[]> serialize(const torch::Tensor &t);
+namespace serialization {
+    std::unique_ptr<char[]> serialize(const torch::Tensor &t);
 
-void deseralize(torch::Tensor &t, std::unique_ptr<char[]> buffer);
-
+    void deseralize(torch::Tensor &t, std::unique_ptr<char[]> buffer);
+}
 #endif // SERIALIZATION

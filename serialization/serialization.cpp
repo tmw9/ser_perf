@@ -2,7 +2,7 @@
 
 #include "serialization.hpp"
 
-size_t stream_size(std::stringstream &ss) {
+static size_t stream_size(std::stringstream &ss) {
     ss.seekg(0, std::ios::end);
     size_t size = ss.tellg();
     ss.seekg(0, std::ios::beg);
@@ -10,7 +10,7 @@ size_t stream_size(std::stringstream &ss) {
     return size;
 }
 
-std::unique_ptr<char[]> serialize(const torch::Tensor &t) {
+std::unique_ptr<char[]> serialization::serialize(const torch::Tensor &t) {
     // I honestly don't like the below approach as it
     // converts the tensor to string stream and then I have to 
     // to go string stream make a copy of the contents
@@ -27,7 +27,7 @@ std::unique_ptr<char[]> serialize(const torch::Tensor &t) {
     return std::move(buffer);
 }
 
-void deseralize(torch::Tensor &t, std::unique_ptr<char[]> buffer) {
+void serialization::deseralize(torch::Tensor &t, std::unique_ptr<char[]> buffer) {
     std::stringstream ss;
 
     size_t ss_size;
