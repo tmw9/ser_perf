@@ -11,6 +11,6 @@ int main() {
 
     auto at =  serialize(tensor);
     torch::Tensor t;
-    deseralize(t, at);
+    deseralize(t, std::move(at));
     std::cout << t << std::endl;
 }

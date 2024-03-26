@@ -10,7 +10,7 @@ size_t stream_size(std::stringstream &ss) {
     return size;
 }
 
-char *serialize(const torch::Tensor &t) {
+std::unique_ptr<char[]> serialize(const torch::Tensor &t) {
     // I honestly don't like the below approach as it
     // converts the tensor to string stream and then I have to 
     // to go string stream make a copy of the contents
@@ -19,21 +19,21 @@ char *serialize(const torch::Tensor &t) {
     torch::save(t, ss);
 
     size_t ss_size = stream_size(ss);
-    char *buffer = new char[ss_size + sizeof(uint64_t)];
+    std::unique_ptr<char[]> buffer = std::make_unique<char[]>(ss_size + sizeof(uint64_t));
 
-    memcpy(buffer, &ss_size, sizeof(uint64_t));
-    memcpy(buffer + sizeof(uint64_t), ss.str().c_str(), ss_size);
+    memcpy(buffer.get(), &ss_size, sizeof(uint64_t));
+    memcpy(buffer.get() + sizeof(uint64_t), ss.str().c_str(), ss_size);
     
     return std::move(buffer);
 }
 
-void deseralize(torch::Tensor &t, const char *buffer) {
+void deseralize(torch::Tensor &t, std::unique_ptr<char[]> buffer) {
     std::stringstream ss;
 
     size_t ss_size;
-    memcpy(&ss_size, buffer, sizeof(uint64_t));
+    memcpy(&ss_size, buffer.get(), sizeof(uint64_t));
 
-    ss.write(buffer + sizeof(uint64_t), ss_size);
+    ss.write(buffer.get() + sizeof(uint64_t), ss_size);
 
     torch::load(t, ss);
     // return std::move(t);

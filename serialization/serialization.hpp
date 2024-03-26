@@ -3,8 +3,8 @@
 
 #include <torch/torch.h>
 
-char *serialize(const torch::Tensor &t);
+std::unique_ptr<char[]> serialize(const torch::Tensor &t);
 
-void deseralize(torch::Tensor &t, const char *buffer);
+void deseralize(torch::Tensor &t, std::unique_ptr<char[]> buffer);
 
 #endif // SERIALIZATION
