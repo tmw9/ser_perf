@@ -1,17 +1,16 @@
 #include <torch/torch.h>
 #include <iostream>
 
+#include "serialization/serialization.hpp"
+
 int main() {
-  srand(time(NULL));
-  uint16_t dim = 1 + (rand() % 1024);
+    srand(time(NULL));
+    uint16_t dim = 1 + (rand() % 1024);
 
-  torch::Tensor tensor = torch::rand({dim, dim});
+    torch::Tensor tensor = torch::rand({dim, dim});
 
-  std::stringstream stream;
-  torch::save(tensor, stream);
-
-  torch::Tensor tensor2;
-  torch::load(tensor2, stream);
-
-  std::cout << tensor2 << std::endl;
+    auto at =  serialize(tensor);
+    torch::Tensor t;
+    deseralize(t, at);
+    std::cout << t << std::endl;
 }
