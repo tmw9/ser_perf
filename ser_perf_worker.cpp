@@ -6,13 +6,20 @@
 
 int main(int argc, char *argv[]) {
     // create ipc
-    int ipc = IPC::create_ipc();
-    if(ipc == -1)
-        return -1;
+    // int ipc = ipc::create_ipc();
+    // if(ipc == -1)
+    //     return -1;
+    // int ipc = ipc::create_socket_server(SOCKET);
+    // std::unique_ptr<ipc::IPC> ipc = ipc::FIFO::create_ipc(FIFO2, FIFO1);
+    std::unique_ptr<ipc::IPC> ipc = ipc::SOCKT::create_ipc(SOCKET, "server");
+    if(!ipc) {
+        std::cout << "IT DIDN'T WORK OUT" << std::endl;
+        exit(1);
+    }
 
     // receive the buffer
     uint64_t buffer_size = -1;
-    std::unique_ptr<char[]> buffer = IPC::receive_data(ipc, buffer_size);
+    std::unique_ptr<char[]> buffer = ipc -> receive_data(buffer_size);
 
     // deseralize the tensor
     torch::Tensor t;
@@ -26,14 +33,14 @@ int main(int argc, char *argv[]) {
     auto sq_buf = serialization::serialize(t, buffer_size);
 
     // send the data over ipc
-    IPC::send_data(ipc, std::move(sq_buf), buffer_size);
+    ipc -> send_data(std::move(sq_buf), buffer_size);
 
-    // close the ipc
-    IPC::destroy_ipc(ipc);
+    // // close the ipc
+    // ipc::destroy_ipc(ipc);
 
     return 0;
 
 failed:
-    IPC::destroy_ipc(ipc);
+    // ipc::destroy_ipc(ipc);
     return -1;
 }
