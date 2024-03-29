@@ -5,36 +5,30 @@
 #include <sys/stat.h>
 #include <sys/un.h>
 #include <sys/socket.h>
+#include <sys/ipc.h>
+#include <sys/mman.h>
 
 #include "ipc.hpp"
 
 namespace ipc {
 
 bool IPC::_send_data(int fifo, std::unique_ptr<char[]> buffer, uint64_t buffer_size) {
-    std::cout << "SENDING DATA BYTES: " << buffer_size << std::endl;
     if(write(fifo, &buffer_size, sizeof(uint64_t)) != sizeof(uint64_t) ||
         write(fifo, buffer.get(), buffer_size) != buffer_size) 
         return false;
 
-    std::cout << "DATA SEND COMPLETE" << std::endl;
     return true;
 }
 
 std::unique_ptr<char[]> IPC::_receive_data(int fifo, uint64_t &buffer_size) {
-    std::cout << "RECEIVING DATA" << std::endl;
     buffer_size = 0;
     if(read(fifo, &buffer_size, sizeof(uint64_t)) != sizeof(uint64_t))
         return nullptr;
 
-    std::cout << "RECEIVING DATA BYTES: " << buffer_size << std::endl;
     auto buffer = std::make_unique<char[]>(buffer_size);
 
     uint64_t data_read = 0;
-    while((data_read += read(fifo, buffer.get() + data_read, buffer_size)) != buffer_size) {
-        std::cout << "RECEIVED SOME DATA: " << data_read << std::endl;
-    }
-
-    std::cout << "RECEIVING DATA COMPLETE" << std::endl;
+    while((data_read += read(fifo, buffer.get() + data_read, buffer_size)) != buffer_size);
 
     return std::move(buffer);
 }
@@ -73,7 +67,6 @@ cleanup:
 }
 
 bool FIFO::send_data(std::unique_ptr<char[]> buffer, uint64_t buffer_size) {
-    std::cout << "IN SEND DATA METHOD" << std::endl;
     return _send_data(m_wr_fifo, std::move(buffer), buffer_size);
 }
 
@@ -152,5 +145,117 @@ bool SOCKT::send_data(std::unique_ptr<char[]> buffer, uint64_t buffer_size) {
 std::unique_ptr<char[]> SOCKT::receive_data(uint64_t &buffer_size) {
     return _receive_data(m_socket, buffer_size);
 }
+
+std::unique_ptr<SHM> SHM::create_ipc(const char *shm_path, const char *host) {
+    char *_shm_path = new char[strlen(shm_path)];
+    int shmfd = -1;
+    shmbuf *shmp;
+    bool is_server = !strcmp(host, "server");
+
+    strcpy(_shm_path, shm_path);
+    
+    if((shmfd = shm_open(_shm_path, O_CREAT | O_RDWR, 0600)) < 0)
+        goto onerror;
+
+    if(is_server && ftruncate(shmfd, sizeof(SHM::shmbuf)) == -1)
+        goto onerror;
+    
+    if((shmp = static_cast<shmbuf *>(mmap(NULL, sizeof(*shmp), PROT_READ | PROT_WRITE, MAP_SHARED, shmfd, 0))) == MAP_FAILED)
+        goto onerror;
+
+    if(is_server && sem_init(&shmp -> server, 1, 0) == -1)
+        goto onerror;
+
+    if(is_server && sem_init(&shmp -> client, 1, 0) == -1)
+        goto onerror;
+    
+    close(shmfd);
+    return std::move(std::make_unique<SHM>(_shm_path, shmp, is_server));
+
+onerror:
+    free(_shm_path);
+    close(shmfd);
+
+    return nullptr;
+}
+
+SHM::SHM(char *shm_path, shmbuf *shmp, bool is_server) : m_shmbuf(shmp), m_server(is_server) {
+    m_shm_path = std::unique_ptr<char>(shm_path);
+}
+
+SHM::~SHM() {
+    if(m_shmbuf)
+        munmap(m_shmbuf, sizeof(*m_shmbuf));
+
+    shm_unlink(m_shm_path.get());
+    m_shmbuf = nullptr;
+}
+
+bool SHM::send_data(std::unique_ptr<char[]> buffer, uint64_t buffer_size) {
+    sem_t *send_sem     = m_server ? (&(m_shmbuf -> server)) : (&(m_shmbuf -> client));
+    sem_t *receive_sem  = m_server ? (&(m_shmbuf -> client)) : (&(m_shmbuf -> server));
+    size_t start = 0;
+
+    m_shmbuf -> bytes_written = sizeof(buffer_size);
+    memcpy(m_shmbuf -> buffer, &buffer_size, sizeof(buffer_size));
+
+    if(sem_post(send_sem) == -1)
+        goto onerror;
+    
+    if(sem_wait(receive_sem) == -1)
+        goto onerror;
+    
+    while(buffer_size) {
+        m_shmbuf -> bytes_written = std::min(SHM_BUF_SIZE, buffer_size);
+        memcpy(m_shmbuf -> buffer, buffer.get() + start, m_shmbuf -> bytes_written);
+        
+        start += m_shmbuf -> bytes_written;
+        buffer_size -= m_shmbuf -> bytes_written;
+
+        if(sem_post(send_sem) == -1)
+            goto onerror;
+        
+        if(buffer_size && sem_wait(receive_sem) == -1)
+            goto onerror;
+    }
+
+    return true;
+
+onerror:
+    return false;
+}
+
+std::unique_ptr<char[]> SHM::receive_data(uint64_t &buffer_size) {
+    sem_t *send_sem     = m_server ? (&(m_shmbuf -> server)) : (&(m_shmbuf -> client));
+    sem_t *receive_sem  = m_server ? (&(m_shmbuf -> client)) : (&(m_shmbuf -> server));
+    size_t start = 0;
+    std::unique_ptr<char[]> buffer = nullptr;
+
+    if(sem_wait(receive_sem) == -1)
+        goto onerror;
+    
+    memcpy(&buffer_size, m_shmbuf -> buffer, sizeof(uint64_t));
+
+    if(sem_post(send_sem) == -1)
+        goto onerror;
+    
+    buffer = std::make_unique<char[]>(buffer_size);
+    while(start < buffer_size) {
+        if(sem_wait(receive_sem) == -1)
+            goto onerror;
+        
+        memcpy(buffer.get() + start, m_shmbuf -> buffer, m_shmbuf -> bytes_written);
+        start += m_shmbuf -> bytes_written;
+
+        if(start < buffer_size && sem_post(send_sem) == -1)
+            goto onerror;
+    }
+
+    return std::move(buffer);
+
+onerror:
+    return nullptr;
+}
+
 
 } // namespace ipc

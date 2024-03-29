@@ -2,22 +2,22 @@
 #define IPCHPP
 
 #include <memory>
+#include <semaphore.h>
 
-#define FIFO1 "/tmp/my_fifo_1"
-#define FIFO2 "/tmp/my_fifo_2"
-#define FIFO3 "/tmp/my_fifo_3"
-#define FIFO4 "/tmp/my_fifo_4"
-#define SOCKET "/tmp/perf.socket"
+#define FIFO1   "/tmp/my_fifo_1"
+#define FIFO2   "/tmp/my_fifo_2"
+#define FIFO3   "/tmp/my_fifo_3"
+#define FIFO4   "/tmp/my_fifo_4"
+#define SOCKET  "/tmp/perf.socket"
+#define SHMFILE "/perf.shmfile"
+
+#define SHM_BUF_SIZE    (1024 * 1024 * 512UL)
 
 namespace ipc {
 
 
 class IPC {
 public:
-    // virtual int create_ipc() = 0;
-    // bool send_data(std::unique_ptr<char[]> buffer, uint64_t buffer_size);
-    // std::unique_ptr<char[]> receive_data(uint64_t &buffer_size);
-
     bool _send_data(int ipc, std::unique_ptr<char[]> buffer, uint64_t buffer_size);
     std::unique_ptr<char[]> _receive_data(int ipc, uint64_t &buffer_size);
 
@@ -58,6 +58,50 @@ public:
     static std::unique_ptr<SOCKT> create_ipc(const char *, const char *);
     bool send_data(std::unique_ptr<char[]> buffer, uint64_t buffer_size);
     std::unique_ptr<char[]> receive_data(uint64_t &buffer_size);
+};
+
+class SHM: public IPC {
+private:
+    std::unique_ptr<char> m_shm_path;
+    bool m_server;
+
+    struct shmbuf {
+        sem_t  server;            /* POSIX unnamed semaphore */
+        sem_t  client;            /* POSIX unnamed semaphore */
+        size_t bytes_written;             /* Number of bytes used in 'buf' */
+        char   buffer[SHM_BUF_SIZE];   /* Data being transferred */
+    };
+    shmbuf *m_shmbuf;
+
+public:
+    SHM(char *, shmbuf *, bool);
+    ~SHM();
+
+    static std::unique_ptr<SHM> create_ipc(const char *, const char *);
+    bool send_data(std::unique_ptr<char[]> buffer, uint64_t buffer_size);
+    std::unique_ptr<char[]> receive_data(uint64_t &buffer_size);
+};
+
+class IPCFactory {
+public:
+    enum class IPCType {
+        FIFO,
+        SOCKT,
+        SHM
+    };
+
+    static std::unique_ptr<IPC> create_ipc(IPCType type, const char *arg1, const char *arg2) {
+        switch (type) {
+            case IPCType::SHM:
+                return SHM::create_ipc(arg1, arg2);
+            case IPCType::SOCKT:
+                return SOCKT::create_ipc(arg1, arg2);
+            case IPCType::FIFO:
+                return FIFO::create_ipc(arg1, arg2);
+            default:
+                return nullptr;
+        }
+    }
 };
 
 } // namespace ipc

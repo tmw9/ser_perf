@@ -7,14 +7,9 @@
 int main(int argc, char *argv[]) {
     srand(time(NULL));
 
-
-    // create ipc
-    // int ipc = ipc::create_ipc();
-    // if(ipc == -1)
-    //     return -1;
-    // int ipc = ipc::create_socket_client(SOCKET);
-    // std::unique_ptr<ipc::IPC> ipc = ipc::FIFO::create_ipc(FIFO1, FIFO2);
-    std::unique_ptr<ipc::IPC> ipc = ipc::SOCKT::create_ipc(SOCKET, "client");
+    auto ipc = ipc::IPCFactory::create_ipc(ipc::IPCFactory::IPCType::FIFO, FIFO1, FIFO2);
+    // auto ipc = ipc::IPCFactory::create_ipc(ipc::IPCFactory::IPCType::SOCKT, SOCKET, "client");
+    // auto ipc = ipc::IPCFactory::create_ipc(ipc::IPCFactory::IPCType::SHM, SHMFILE, "client");
 
     // create tensor
     uint16_t dim = 1 + (rand() % 1024);
@@ -40,13 +35,9 @@ int main(int argc, char *argv[]) {
     // check if the data is correct
     assert(torch::equal(torch::square(tensor), sq_tensor));
 
-    // // close the ipc
-    // ipc::destroy_ipc(ipc);
-
     return 0;
 
 failed:
-    // ipc::destroy_ipc(ipc);
     return -1;
 
 
