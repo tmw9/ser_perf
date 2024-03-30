@@ -4,13 +4,6 @@
 #include <memory>
 #include <semaphore.h>
 
-#define FIFO1   "/tmp/my_fifo_1"
-#define FIFO2   "/tmp/my_fifo_2"
-#define FIFO3   "/tmp/my_fifo_3"
-#define FIFO4   "/tmp/my_fifo_4"
-#define SOCKET  "/tmp/perf.socket"
-#define SHMFILE "/perf.shmfile"
-
 #define SHM_BUF_SIZE    (1024 * 1024 * 512UL)
 
 namespace ipc {
@@ -84,23 +77,16 @@ public:
 
 class IPCFactory {
 public:
-    enum class IPCType {
-        FIFO,
-        SOCKT,
-        SHM
-    };
-
-    static std::unique_ptr<IPC> create_ipc(IPCType type, const char *arg1, const char *arg2) {
-        switch (type) {
-            case IPCType::SHM:
-                return SHM::create_ipc(arg1, arg2);
-            case IPCType::SOCKT:
-                return SOCKT::create_ipc(arg1, arg2);
-            case IPCType::FIFO:
-                return FIFO::create_ipc(arg1, arg2);
-            default:
-                return nullptr;
-        }
+    static std::unique_ptr<IPC> create_ipc(const char *ipc_type_cstr, const char *arg1, const char *arg2) {
+        std::string ipctype(ipc_type_cstr);
+        if(ipctype == "FIFO")
+            return FIFO::create_ipc(arg1, arg2);
+        else if(ipctype == "SOCKET")
+            return SOCKT::create_ipc(arg1, arg2);
+        else if(ipctype == "SHM")
+            return SHM::create_ipc(arg1, arg2);
+        else
+            return nullptr;
     }
 };
 
