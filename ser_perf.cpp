@@ -24,13 +24,13 @@ int main(int argc, char *argv[]) {
 
     // create tensor
     torch::Tensor tensor = torch::rand({dim, dim});
-    torch::Tensor sq_tensor;
+    torch::Tensor sq_tensor = torch::zeros({1});
     
     t1 = std::chrono::high_resolution_clock::now();
 
     // serialize the tensor
     uint64_t buffer_size = 0;
-    auto tensor_buffer =  serialization::serialize(tensor, buffer_size);
+    auto tensor_buffer =  serialization::RawPtrSerializer::serialize(tensor, buffer_size);
 
     // send data over ipc
     ipc -> send_data(std::move(tensor_buffer), buffer_size);
@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
     auto sq_tensor_buffer = ipc -> receive_data(buffer_size);
 
     // deserailize the tensor
-    serialization::deseralize(sq_tensor, std::move(sq_tensor_buffer), buffer_size);
+    serialization::RawPtrSerializer::deseralize(sq_tensor, std::move(sq_tensor_buffer), buffer_size);
 
     t2 = std::chrono::high_resolution_clock::now();
 
@@ -54,6 +54,4 @@ int main(int argc, char *argv[]) {
 
 failed:
     return -1;
-
-
 }

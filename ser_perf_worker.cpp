@@ -22,15 +22,15 @@ int main(int argc, char *argv[]) {
         uint64_t buffer_size = -1;
         std::unique_ptr<char[]> buffer = ipc -> receive_data(buffer_size);
         // deseralize the tensor
-        torch::Tensor t;
-        serialization::deseralize(t, std::move(buffer), buffer_size);
+        torch::Tensor t = torch::zeros({1});
+        serialization::RawPtrSerializer::deseralize(t, std::move(buffer), buffer_size);
 
         // perform the operation
         t = torch::square(t);
 
         // serailize the output
         buffer_size = -1;
-        auto sq_buf = serialization::serialize(t, buffer_size);
+        auto sq_buf = serialization::RawPtrSerializer::serialize(t, buffer_size);
 
         // send the data over ipc
         ipc -> send_data(std::move(sq_buf), buffer_size);

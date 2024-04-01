@@ -1,9 +1,10 @@
 # libraries
 import matplotlib.pyplot as plt
+import sys
 
 pts = {}
 
-with open('ipc1.log', 'r') as f:
+with open(sys.argv[1], 'r') as f:
     for line in f.readlines():
         ipc, a, b = line.split()
         if ipc not in pts:
