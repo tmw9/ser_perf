@@ -13,7 +13,6 @@ then
         arg1="/prog"
     fi
 fi
-echo "HERE"
 
 pids=()
 for i in $(seq 1 4)

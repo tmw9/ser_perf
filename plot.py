@@ -1,17 +1,25 @@
 # libraries
 import matplotlib.pyplot as plt
 
-pts = []
+pts = {}
 
-with open('socket.log', 'r') as f:
+with open('ipc1.log', 'r') as f:
     for line in f.readlines():
-        _, a, b = line.split()
-        pts.append((float(a.strip()), float(b.strip())))
+        ipc, a, b = line.split()
+        if ipc not in pts:
+            pts[ipc] = []
+        pts[ipc].append((float(a.strip()), float(b.strip())))
 
-pts.sort()
-x = [i[0] for i in pts]
-y = [i[1] for i in pts]
+for ipctype in pts:
+    pts[ipctype].sort()
+
+for ipctype in pts:
+    x = [i[0] for i in pts[ipctype]]
+    y = [i[1] for i in pts[ipctype]]
+
+    plt.plot(x, y, label=ipctype)
 # create data
 # use the plot function
-plt.plot(x, y)
+# plt.plot(x, y)
+plt.legend()
 plt.show()  # display

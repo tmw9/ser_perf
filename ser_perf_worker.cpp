@@ -11,18 +11,16 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
+
+    auto ipc = ipc::IPCFactory::create_ipc(argv[1], argv[2], argv[3]);
+    
+    if(!ipc)
+        exit(1);
+
     while(true) {
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-
-        auto ipc = ipc::IPCFactory::create_ipc(argv[1], argv[2], argv[3]);
-        
-        if(!ipc) 
-            exit(1);
-
         // receive the buffer
         uint64_t buffer_size = -1;
         std::unique_ptr<char[]> buffer = ipc -> receive_data(buffer_size);
-
         // deseralize the tensor
         torch::Tensor t;
         serialization::deseralize(t, std::move(buffer), buffer_size);
@@ -38,7 +36,6 @@ int main(int argc, char *argv[]) {
         ipc -> send_data(std::move(sq_buf), buffer_size);
 
         std::cout << "SERVED CLIENT" << std::endl;
-
     }
 
     return 0;

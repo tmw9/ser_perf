@@ -8,20 +8,21 @@
 int main(int argc, char *argv[]) {
     srand(time(NULL));
 
-    if(argc < 3) {
-        std::cout << "Usage: ./ser_perf <IPCType> arg1 arg2" << std::endl;
+    if(argc < 4) {
+        std::cout << "Usage: ./ser_perf <IPCType> arg1 arg2 <dimensions>" << std::endl;
         exit(1);
     }
-
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    
+    uint16_t dim = std::stoi(argv[4]);
+    auto ipc = ipc::IPCFactory::create_ipc(argv[1], argv[2], argv[3]);
+    if(!ipc) {
+        perror("WHAT HAPPENED: ");
+        return 1;
+    }
 
     std::chrono::high_resolution_clock::time_point t1, t2;
-    std::chrono::duration<double> time_span;
-
-    auto ipc = ipc::IPCFactory::create_ipc(argv[1], argv[2], argv[3]);
 
     // create tensor
-    uint16_t dim = 1 + (rand() % 1024);
     torch::Tensor tensor = torch::rand({dim, dim});
     torch::Tensor sq_tensor;
     
@@ -37,8 +38,6 @@ int main(int argc, char *argv[]) {
     // receive data over ipc
     buffer_size = -1;
     auto sq_tensor_buffer = ipc -> receive_data(buffer_size);
-    if(!sq_tensor_buffer)
-        goto failed;
 
     // deserailize the tensor
     serialization::deseralize(sq_tensor, std::move(sq_tensor_buffer), buffer_size);
@@ -48,7 +47,7 @@ int main(int argc, char *argv[]) {
     // check if the data is correct
     assert(torch::equal(torch::square(tensor), sq_tensor));
 
-    time_span = std::chrono::duration_cast<std::chrono::duration<double> >(t2 - t1);
+    auto time_span = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1);
     std::cout << argv[1] << " " << dim << " " << time_span.count() << std::endl;
     
     return 0;

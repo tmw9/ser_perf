@@ -42,10 +42,10 @@ private:
     std::unique_ptr<char> m_socket_path;
     bool m_server;
 
-    int m_socket;
+    int m_server_socket, m_client_socket;
 
 public:
-    SOCKT(char *, int);
+    SOCKT(char *, bool, int, int);
     ~SOCKT();
 
     static std::unique_ptr<SOCKT> create_ipc(const char *, const char *);
