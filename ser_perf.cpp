@@ -30,7 +30,7 @@ int main(int argc, char *argv[]) {
 
     // serialize the tensor
     uint64_t buffer_size = 0;
-    auto tensor_buffer =  serialization::RawPtrSerializer::serialize(tensor, buffer_size);
+    auto tensor_buffer =  serialization::InBuiltSerializer::serialize(tensor, buffer_size);
 
     // send data over ipc
     ipc -> send_data(std::move(tensor_buffer), buffer_size);
@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
     auto sq_tensor_buffer = ipc -> receive_data(buffer_size);
 
     // deserailize the tensor
-    serialization::RawPtrSerializer::deseralize(sq_tensor, std::move(sq_tensor_buffer), buffer_size);
+    serialization::InBuiltSerializer::deseralize(sq_tensor, std::move(sq_tensor_buffer), buffer_size);
 
     t2 = std::chrono::high_resolution_clock::now();
 
