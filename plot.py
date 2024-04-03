@@ -4,15 +4,15 @@ import sys
 
 pts = {}
 
-with open(sys.argv[1], 'r') as f:
-    for line in f.readlines():
-        ipc, a, b = line.split()
-        ipc += '-RAW'
-        if ipc not in pts:
-            pts[ipc] = []
-        pts[ipc].append((float(a.strip()), float(b.strip())))
+# with open(sys.argv[1], 'r') as f:
+#     for line in f.readlines():
+#         ipc, a, b = line.split()
+#         ipc += '-RAW'
+#         if ipc not in pts:
+#             pts[ipc] = []
+#         pts[ipc].append((float(a.strip()), float(b.strip())))
 
-with open(sys.argv[2], 'r') as f:
+with open(sys.argv[1], 'r') as f:
     for line in f.readlines():
         ipc, a, b = line.split()
         ipc += '-InBuilt'
@@ -25,7 +25,6 @@ for ipctype in pts:
     pts[ipctype].sort()
 
 for ipctype in pts:
-    # if ipctype.startswith('SOCKET'):
     x = [i[0] for i in pts[ipctype]]
     y = [i[1] for i in pts[ipctype]]
 
